@@ -18,8 +18,11 @@ const allowedOrigins = process.env.CORS_ORIGIN?.split(',') || ['http://localhost
 app.use(helmet());
 app.use(cors({ 
   origin: (origin, callback) => {
-    // No Origin header = direct browser navigation (redirects, address bar, etc.)
-    // These are NOT cross-origin AJAX and should always be allowed
+    // No Origin header = direct browser navigation (redirects, address bar, GET requests)
+    // CORS only applies to cross-origin AJAX — browser redirects (e.g. /oauth/authorize)
+    // never send an Origin header, so they must be allowed through.
+    // This is safe because CORS controls *browser AJAX*, not server-to-server or curl.
+    // Sensitive endpoints are protected by auth tokens, not CORS.
     if (!origin) {
       return callback(null, true);
     }

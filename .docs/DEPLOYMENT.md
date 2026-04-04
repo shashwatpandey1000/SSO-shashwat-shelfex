@@ -66,7 +66,7 @@ git clone <repo-url>
 cd 360-SSO
 
 # Install all dependencies
-cd sso/server && npm install
+cd SSO/server && npm install
 cd ../client && npm install
 cd ../../360/server && npm install
 cd ../client && npm install
@@ -74,7 +74,7 @@ cd ../client && npm install
 
 ### 2. Configure Environment
 
-**SSO Server** (`sso/server/.env`):
+**SSO Server** (`SSO/server/.env`):
 ```bash
 NODE_ENV=development
 PORT=8000
@@ -88,7 +88,7 @@ RESEND_API_KEY=<your-resend-key>
 RESEND_FROM_EMAIL=no-reply@yourdomain.com
 ```
 
-**SSO Client** (`sso/client/.env.local`):
+**SSO Client** (`SSO/client/.env.local`):
 ```bash
 NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
 ```
@@ -116,7 +116,7 @@ NEXT_PUBLIC_CALLBACK_URL=http://localhost:3001/auth/callback
 ### 3. Setup Database
 
 ```bash
-cd sso/server
+cd SSO/server
 
 # Generate migration files
 npm run db:generate
@@ -132,10 +132,10 @@ npm run db:seed
 
 ```bash
 # Terminal 1: SSO backend
-cd sso/server && npm run dev          # → localhost:8000
+cd SSO/server && npm run dev          # → localhost:8000
 
 # Terminal 2: SSO frontend
-cd sso/client && npm run dev          # → localhost:3000
+cd SSO/client && npm run dev          # → localhost:3000
 
 # Terminal 3: App backend
 cd 360/server && npm run dev          # → localhost:4000
@@ -148,7 +148,7 @@ cd 360/client && npm run dev          # → localhost:3001
 
 1. Visit `http://localhost:3001`
 2. You'll be redirected to `http://localhost:3000/login?client_id=shelf360&...`
-3. Login with `test@shelfex.com` / `12345`
+3. Login with `test@shelfex.com` / `12345` (as set in `seed.ts`)
 4. You'll be redirected back to `http://localhost:3001/auth/callback?code=...`
 5. Then to `http://localhost:3001/dashboard`
 
@@ -171,6 +171,7 @@ cd 360/client && npm run dev          # → localhost:3001
 | `RESEND_API_KEY` | Yes | Resend.com API key for transactional emails | `re_...` |
 | `RESEND_FROM_EMAIL` | Yes | Sender email address (must be verified in Resend) | `no-reply@shelfex.com` |
 | `COOKIE_DOMAIN` | No | Domain for `accounts_session` cookie. Set for same-domain SSO. | `.shelfex.com` |
+| `ID_TOKEN_SECRET` | No | Separate signing key for ID tokens. Falls back to `ACCESS_TOKEN_SECRET` if not set. Set in production for key separation. | 64+ random hex chars |
 
 ### SSO Client
 
@@ -232,12 +233,12 @@ Deploy in this order to avoid breaking changes:
 
 ```bash
 # SSO Server
-cd sso/server
+cd SSO/server
 npm run build          # Outputs to dist/
 npm start              # Runs production build
 
 # SSO Client
-cd sso/client
+cd SSO/client
 npm run build          # Next.js production build
 npm start              # Runs production server
 
@@ -354,6 +355,8 @@ This creates:
 - Client apps: `shelfscan`, `shelfmuse`, `shelfintel`, `shelf360`
 
 **For production:** Create client apps via direct SQL or a custom admin script. Do NOT use the dev seed secrets.
+
+> **Note:** The seed script's console output may show different credentials than what's actually seeded. Always refer to the values in `seed.ts` source code.
 
 ### Registering a New Client App
 

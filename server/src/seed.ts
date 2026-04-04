@@ -150,7 +150,7 @@ async function seedAll() {
     logger.info('\nTest Credentials:');
     logger.info('Email: test@shelfex.com');
     logger.info('Username: testuser');
-    logger.info('Password: Test123!');
+    logger.info('Password: 12345');
 
     process.exit(0);
   } catch (error) {

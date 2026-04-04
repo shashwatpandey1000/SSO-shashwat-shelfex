@@ -407,6 +407,12 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
         return;
       }
 
+      // PKCE is required
+      if (!code_challenge) {
+        res.status(400).json({ success: false, message: 'PKCE required. code_challenge is missing.' });
+        return;
+      }
+
       // Generate authorization code directly (same as /oauth/authorize would)
       const authCode = generateAuthCode();
       const codeHash = hashToken(authCode);
@@ -415,8 +421,8 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
         userId: user.id,
         clientId: client_id,
         redirectUri: redirect_uri,
-        codeChallenge: code_challenge || null,
-        codeChallengeMethod: code_challenge ? (code_challenge_method || 'plain') : null,
+        codeChallenge: code_challenge,
+        codeChallengeMethod: code_challenge_method || 'S256',
         nonce: nonce || null,
         expiresAt: getAuthCodeExpiry(),
         isUsed: false,

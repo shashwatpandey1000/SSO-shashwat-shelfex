@@ -104,7 +104,7 @@ Your app must be registered in the SSO `client_apps` table.
 
 ### Option 1: Add to Seed Script
 
-Add your app to `sso/server/src/seed.ts`:
+Add your app to `SSO/server/src/seed.ts`:
 
 ```typescript
 {
@@ -267,10 +267,13 @@ async function redirectToSSO(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|auth/).*)',
+    // Only exclude auth/error — /auth/callback MUST go through middleware for state validation
+    '/((?!_next/static|_next/image|favicon.ico|auth/error).*)',
   ],
 };
 ```
+
+> **Important:** The matcher must NOT exclude `/auth/callback`. The middleware validates the OAuth `state` parameter on callback to prevent CSRF. Only `/auth/error` should be excluded.
 
 ### Step 2: Callback Page (`app/auth/callback/page.tsx`)
 
@@ -617,7 +620,7 @@ These are handled automatically by the SSO and your integration:
 
 | Feature | Description |
 |---------|-------------|
-| **PKCE (S256)** | Prevents auth code interception. Middleware generates `code_verifier` → sends `code_challenge` to SSO → backend sends `code_verifier` during token exchange. |
+| **PKCE (S256, enforced)** | Required on all OAuth flows. Middleware generates `code_verifier` → sends `code_challenge` to SSO → backend sends `code_verifier` during token exchange. SSO rejects requests without `code_challenge`. Default method: S256. |
 | **OAuth State** | CSRF protection on the OAuth flow. Random state stored in httpOnly cookie, validated on callback. |
 | **Nonce** | ID token replay protection. Random value embedded in ID token for verification. |
 | **Refresh Token Rotation** | Each refresh invalidates the old token and issues a new one. Reuse of a revoked token revokes ALL sessions for that user. |
@@ -641,10 +644,10 @@ These are handled automatically by the SSO and your integration:
 
 ```bash
 # SSO backend (port 8000)
-cd sso/server && npm run dev
+cd SSO/server && npm run dev
 
 # SSO frontend (port 3000)
-cd sso/client && npm run dev
+cd SSO/client && npm run dev
 
 # Your app backend (port 4000)
 cd your-app/server && npm run dev
@@ -675,11 +678,11 @@ cd your-app/client && npm run dev
 
 ## Production Deployment
 
-### Deploy order (zero downtime, backward compatible)
+### Deploy order
 
-1. **SSO server** — accepts PKCE but doesn't require it
-2. **Your Express backend** — forwards `code_verifier` when present
-3. **Your Next.js frontend** — starts sending PKCE + nonce
+1. **SSO server** — PKCE is enforced (`code_challenge` required)
+2. **Your Express backend** — forwards `code_verifier` to SSO
+3. **Your Next.js frontend** — generates PKCE challenge + nonce
 
 ### Checklist
 
@@ -701,7 +704,7 @@ cd your-app/client && npm run dev
 | "Invalid code_verifier" | PKCE verification failed | Verify `code_challenge = BASE64URL(SHA256(code_verifier))` |
 | "Invalid state parameter" | State cookie expired or mismatch | Complete OAuth flow within 10 minutes |
 | Cookies not set | `secure: true` without HTTPS | Use `NODE_ENV=development` locally |
-| Infinite redirect loop | Callback route is protected | Ensure middleware excludes `/auth/*` paths |
+| Infinite redirect loop | Callback route is protected | Ensure middleware excludes `/auth/error` only (NOT all `/auth/*` — `/auth/callback` must go through middleware for state validation) |
 | Infinite redirect loop (cross-domain) | `accounts_session` cookie rejected cross-site | SSO login-initiated flow handles this automatically — ensure SSO server is updated |
 | `jsonwebtoken` crash in middleware | Next.js Edge Runtime doesn't support Node.js `crypto` | Use manual base64 JWT decode (see middleware example above). Do NOT use `jsonwebtoken` in middleware. |
 | Token expired, no auto-refresh | Missing axios interceptor | Add the token refresh interceptor (Step 6) to your API client |
@@ -716,7 +719,7 @@ cd your-app/client && npm run dev
 |----------|--------|---------|
 | `/api/v1/oauth/authorize` | GET | Start OAuth flow. Params: `client_id`, `redirect_uri`, `response_type=code`, `state`, `code_challenge`, `code_challenge_method`, `nonce` |
 | `/api/v1/oauth/token` | POST | Exchange code for tokens. Body: `grant_type`, `code`, `redirect_uri`, `client_id`, `client_secret`, `code_verifier` |
-| `/api/v1/auth/login` | POST | Login. Body: `identifier`, `password` + optional OAuth/PKCE params |
+| `/api/v1/auth/login` | POST | Login. Body: `identifier`, `password`. OAuth params (when redirected from `/oauth/authorize`): `client_id`, `redirect_uri`, `state`, `code_challenge`, `code_challenge_method`, `nonce` |
 | `/api/v1/auth/refresh` | POST | Refresh tokens. Body/cookie: `refreshToken`. Returns new `accessToken` + `refreshToken` (rotation). |
 | `/api/v1/auth/logout` | POST | API logout. Revokes refresh token, clears cookies. |
 | `/api/v1/auth/logout` | GET | Redirect logout. Param: `redirect_uri`. Clears SSO session + redirects. |
@@ -725,6 +728,8 @@ cd your-app/client && npm run dev
 | `/api/v1/auth/verify-email` | POST | Verify email OTP. Body: `email`, `code` |
 | `/api/v1/auth/forgot-password` | POST | Request password reset. Body: `email` |
 | `/api/v1/auth/reset-password` | POST | Reset password. Body: `email`, `token`, `newPassword` |
+| `/api/v1/auth/resend-verification` | POST | Resend email verification OTP. Body: `email` |
+| `/api/v1/health` | GET | Health check. Returns `{ status: "UP", services: { database: { status: "UP" } } }` |
 
 ### Token Response (`POST /oauth/token`)
 

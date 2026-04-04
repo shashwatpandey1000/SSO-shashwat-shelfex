@@ -12,8 +12,8 @@ OAuth 2.0 Authorization Code Flow with PKCE, powering SSO across all Shelfex pro
 
 | Measure | Implementation |
 |---------|---------------|
-| PKCE (S256) | `code_verifier` / `code_challenge` on every OAuth flow — prevents auth code interception |
-| Nonce | OpenID Connect nonce in ID tokens — prevents replay attacks |
+| PKCE (S256, enforced) | `code_challenge` required on `/oauth/authorize` and login-initiated flows. Default method: S256. Prevents auth code interception. |
+| Nonce | OpenID Connect nonce embedded in ID tokens. Stored in httpOnly cookie during OAuth flow (auto-expires 10min). Consumer-side validation is the integrating app's responsibility. |
 | OAuth State | Random UUID per flow, validated on callback — prevents CSRF on OAuth |
 | Auth Code Hashing | SHA-256 hashed before DB storage — DB breach doesn't expose active codes |
 | One-Time Auth Codes | Marked used after exchange, 10-minute expiry |
@@ -24,13 +24,13 @@ OAuth 2.0 Authorization Code Flow with PKCE, powering SSO across all Shelfex pro
 
 | Measure | Implementation |
 |---------|---------------|
-| httpOnly Cookies | All tokens (access, refresh, session) in httpOnly cookies — no JS access |
+| httpOnly Cookies | All auth tokens (access, refresh, session) in httpOnly cookies — no JS access. **Exception:** `pkce_verifier` is `httpOnly: false` so the callback page can read and forward it to the backend. It auto-expires in 10 minutes. |
 | sameSite: lax | All cookies — prevents cross-site request forgery |
 | Secure Flag | `secure: true` in production — HTTPS only |
 | Short-Lived Access Tokens | 1-hour JWT expiry, audience + issuer validated |
 | Refresh Token Rotation | New token pair on every refresh, old token revoked |
 | Reuse Detection | If revoked refresh token is used → all user sessions revoked |
-| Separate ID Token | Distinct secret + audience (`shelfex-id-token`) — can't be confused with access tokens |
+| Separate ID Token | Distinct audience (`shelfex-id-token`). Uses `ID_TOKEN_SECRET` env var if set; falls back to `ACCESS_TOKEN_SECRET`. Set `ID_TOKEN_SECRET` in production for full key separation. |
 | No Tokens in Response Body | Login response contains user info only — tokens are in httpOnly cookies |
 
 ### Password Security
@@ -38,7 +38,7 @@ OAuth 2.0 Authorization Code Flow with PKCE, powering SSO across all Shelfex pro
 | Measure | Implementation |
 |---------|---------------|
 | bcrypt (12 rounds) | All passwords hashed with bcrypt |
-| Strength Validation | Min 8 chars, uppercase, lowercase, number, special character |
+| Strength Validation | Min 8 chars, max 128 chars, uppercase, lowercase, number, special character |
 | OTP Hashing | Email verification codes SHA-256 hashed before DB storage |
 | Reset Token Hashing | Password reset tokens SHA-256 hashed before DB storage |
 | Session Revocation on Reset | All refresh tokens revoked when password is changed |
@@ -59,7 +59,7 @@ OAuth 2.0 Authorization Code Flow with PKCE, powering SSO across all Shelfex pro
 | Measure | Implementation |
 |---------|---------------|
 | Helmet.js | HTTP security headers (CSP, X-Frame-Options, etc.) |
-| CORS Whitelist | Only registered origins allowed; no-origin blocked in production |
+| CORS Whitelist | Only registered origins allowed. Requests with no `Origin` header (browser redirects, direct navigation) are allowed through — this is safe because CORS only governs browser AJAX; sensitive endpoints are protected by auth tokens, not CORS. |
 | Trust Proxy | Express `trust proxy` enabled — accurate client IP behind ALB/nginx |
 | req.ip | All IP extraction via `req.ip` (proxy-aware) — no spoofable `x-forwarded-for` |
 | Input Limits | Request body capped at 16KB |
@@ -152,4 +152,51 @@ Both paths provide identical security guarantees:
 | Auth code single-use | ✓ | ✓ |
 | Token exchange requires client_secret | ✓ | ✓ |
 | Email verification enforced | ✓ | ✓ |
-| Rate limiting | ✓ (login rate limits) | N/A (already authenticated) |
+| Rate limiting | ✓ (login rate limits) | N/A (already authenticated) || PKCE enforced | ✓ (required) | ✓ (required) |
+
+### Additional Notes
+
+- **`accounts_session` cookie** has `path: '/api/v1/oauth'`, restricting it to OAuth routes only — not sent on other API calls.
+- **Logout redirect** validates `redirect_uri` against registered client app origins to prevent open redirects.
+- **Refresh token** can be sent via httpOnly cookie OR request body (`refreshToken` field) — the 360/shelfintel servers use the body approach for server-to-server calls.
+- **`ID_TOKEN_SECRET`** (optional env var): If not set, ID tokens share the same signing key as access tokens. Set it in production for proper key separation.
+
+### JWT Claims Structure
+
+**Access Token** (`audience: shelfex-services`, `issuer: accounts.shelfex.com`):
+| Claim | Type | Description |
+|-------|------|-------------|
+| `userId` | string (UUID) | User's unique ID |
+| `email` | string | User's email |
+| `emailVerified` | boolean | Whether email is verified |
+| `iat` | number | Issued at (Unix timestamp) |
+| `exp` | number | Expires at (Unix timestamp, 1 hour) |
+| `iss` | string | `accounts.shelfex.com` |
+| `aud` | string | `shelfex-services` |
+
+**ID Token** (`audience: shelfex-id-token`):
+| Claim | Type | Description |
+|-------|------|-------------|
+| `userId` | string (UUID) | User's unique ID |
+| `email` | string | User's email |
+| `name` | string \| null | User's display name |
+| `emailVerified` | boolean | Whether email is verified |
+| `nonce` | string | Echoed from OAuth flow (for replay protection) |
+
+**Refresh Token** (`audience: shelfex-refresh`):
+| Claim | Type | Description |
+|-------|------|-------------|
+| `userId` | string (UUID) | User's unique ID |
+| `tokenId` | string (UUID) | Unique token identifier (for rotation/revocation) |
+
+### API Response Format
+
+All endpoints return:
+```json
+{
+  "success": true | false,
+  "message": "Human-readable message",
+  "data": { ... },     // Present on success (when applicable)
+  "error": "..."       // Present on failure (detailed error for debugging)
+}
+```

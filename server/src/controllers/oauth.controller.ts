@@ -47,17 +47,24 @@ export const authorize = async (req: Request, res: Response, next: NextFunction)
       return;
     }
 
-    // PKCE validation: if code_challenge is present, method must be S256 or plain
-    if (code_challenge) {
-      const method = (code_challenge_method as string) || 'plain';
-      if (!['S256', 'plain'].includes(method)) {
-        res.status(400).json({
-          success: false,
-          message: 'Invalid code_challenge_method',
-          error: 'Supported methods: S256, plain',
-        });
-        return;
-      }
+    // PKCE is required — code_challenge must be present
+    if (!code_challenge) {
+      res.status(400).json({
+        success: false,
+        message: 'PKCE required',
+        error: 'code_challenge is required. Use code_challenge_method=S256.',
+      });
+      return;
+    }
+
+    const method = (code_challenge_method as string) || 'S256';
+    if (!['S256', 'plain'].includes(method)) {
+      res.status(400).json({
+        success: false,
+        message: 'Invalid code_challenge_method',
+        error: 'Supported methods: S256, plain',
+      });
+      return;
     }
 
     // Validate client_id exists and redirect_uri is allowed
@@ -144,8 +151,8 @@ export const authorize = async (req: Request, res: Response, next: NextFunction)
       userId,
       clientId: client_id as string,
       redirectUri: redirect_uri as string,
-      codeChallenge: (code_challenge as string) || null,
-      codeChallengeMethod: code_challenge ? ((code_challenge_method as string) || 'plain') : null,
+      codeChallenge: code_challenge as string,
+      codeChallengeMethod: (code_challenge_method as string) || 'S256',
       nonce: (nonce as string) || null,
       expiresAt: getAuthCodeExpiry(),
       isUsed: false,
@@ -284,7 +291,7 @@ export const token = async (req: Request, res: Response, next: NextFunction): Pr
         return;
       }
 
-      const isValid = verifyCodeChallenge(code_verifier, authCode.codeChallenge, authCode.codeChallengeMethod || 'plain');
+      const isValid = verifyCodeChallenge(code_verifier, authCode.codeChallenge, authCode.codeChallengeMethod || 'S256');
       if (!isValid) {
         res.status(400).json({
           success: false,
