@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { authApi } from '@/lib/api';
 import { validatePassword } from '@/lib/password';
 import { BsEye, BsEyeSlash } from 'react-icons/bs';
@@ -9,11 +9,17 @@ import { AiOutlineLoading3Quarters } from 'react-icons/ai';
 
 export default function RegisterPage() {
   const router = useRouter();
-  
-  const [email, setEmail] = useState('');
+  const searchParams = useSearchParams();
+
+  // Invite prefill: ?invite=true&email=xxx&name=yyy
+  const isInvite = searchParams.get('invite') === 'true';
+  const prefillEmail = searchParams.get('email') || '';
+  const prefillName = searchParams.get('name') || '';
+
+  const [email, setEmail] = useState(prefillEmail);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
+  const [name, setName] = useState(prefillName);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -80,8 +86,13 @@ export default function RegisterPage() {
       <div className="flex flex-1 flex-col items-center justify-center bg-white">
         <div className="-mt-12 w-[420px]">
           <h3 className="font-roobert mb-4 text-[22px] leading-7 font-medium text-[#141414]">
-            Create your Shelfex account
+            {isInvite ? 'Complete your Shelfex account' : 'Create your Shelfex account'}
           </h3>
+          {isInvite && (
+            <p className="mb-4 text-[14px] text-gray-500">
+              You&apos;ve been invited to join an organization. Set your password to get started.
+            </p>
+          )}
 
           <div className="mt-4">
             {error && (
@@ -117,10 +128,11 @@ export default function RegisterPage() {
                   id="email"
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => !isInvite && setEmail(e.target.value)}
+                  readOnly={isInvite}
                   required
                   autoComplete="email"
-                  className="w-full border border-gray-300 bg-white px-3 py-2 text-[14px] text-gray-900 transition-all duration-200 hover:border-black focus:border-2 focus:border-black/80 focus:outline-none"
+                  className={`w-full border border-gray-300 bg-white px-3 py-2 text-[14px] text-gray-900 transition-all duration-200 hover:border-black focus:border-2 focus:border-black/80 focus:outline-none ${isInvite ? 'bg-gray-50 cursor-not-allowed opacity-75' : ''}`}
                   placeholder="you@example.com"
                 />
               </div>
@@ -197,15 +209,16 @@ export default function RegisterPage() {
                   htmlFor="name"
                   className="mb-2 block text-[14px] leading-5 font-medium text-[#131313]"
                 >
-                  Full Name <span className="text-xs text-gray-500">(optional)</span>
+                  Full Name {!isInvite && <span className="text-xs text-gray-500">(optional)</span>}
                 </label>
                 <input
                   id="name"
                   type="text"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => !isInvite && setName(e.target.value)}
+                  readOnly={isInvite}
                   autoComplete="name"
-                  className="w-full border border-gray-300 bg-white px-3 py-2 text-[14px] text-gray-900 transition-all duration-200 hover:border-black focus:border-2 focus:border-black/80 focus:outline-none"
+                  className={`w-full border border-gray-300 bg-white px-3 py-2 text-[14px] text-gray-900 transition-all duration-200 hover:border-black focus:border-2 focus:border-black/80 focus:outline-none ${isInvite ? 'bg-gray-50 cursor-not-allowed opacity-75' : ''}`}
                   placeholder="John Doe"
                 />
               </div>
