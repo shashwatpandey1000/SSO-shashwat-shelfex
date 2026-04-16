@@ -39,7 +39,7 @@ function setAuthCookies(res: Response, accessToken: string, refreshToken: string
   const isProduction = process.env.NODE_ENV === 'production';
   // vercel.app is on the Public Suffix List, so cross-subdomain requests are cross-site.
   // SameSite=None + Secure is required for cookies to be stored/sent cross-site.
-  const sameSite: 'lax' | 'none' = isProduction ? 'none' : 'lax';
+  const sameSite: 'none' = 'none';
 
   res.cookie('access_token', accessToken, {
     httpOnly: true,
@@ -72,7 +72,7 @@ function setAuthCookies(res: Response, accessToken: string, refreshToken: string
 
 function clearAuthCookies(res: Response) {
   const isProduction = process.env.NODE_ENV === 'production';
-  const sameSite: 'lax' | 'none' = isProduction ? 'none' : 'lax';
+  const sameSite: 'none' = 'none';
 
   res.clearCookie('access_token', { path: '/', sameSite, secure: isProduction });
   res.clearCookie('refresh_token', { path: '/', sameSite, secure: isProduction });
