@@ -1,4 +1,4 @@
-name: Deploy SSO Server to ECR
+name: Deploy SSO Server to ECS
 
 on:
   push:
@@ -10,6 +10,9 @@ env:
   AWS_REGION: us-west-2
   ECR_REPOSITORY: shelfex-sso-server
   ECR_REGISTRY: 836529327543.dkr.ecr.us-west-2.amazonaws.com
+  ECS_CLUSTER: shelfex-production
+  ECS_SERVICE: shelfex-sso-server
+  ECS_TASK_FAMILY: shelfex-sso-server
 
 jobs:
   deploy:
@@ -34,3 +37,7 @@ jobs:
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }} .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }}
+
+      - name: Force new ECS deployment
+        run: |
+          aws ecs update-service --cluster $ECS_CLUSTER --service $ECS_SERVICE --force-new-deployment

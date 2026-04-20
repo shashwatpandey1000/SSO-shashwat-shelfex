@@ -1,0 +1,48 @@
+{
+  "family": "shelfex-sso-server",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "1024",
+  "memory": "2048",
+  "executionRoleArn": "arn:aws:iam::836529327543:role/ecsTaskExecutionRole",
+  "containerDefinitions": [
+    {
+      "name": "sso-server",
+      "image": "836529327543.dkr.ecr.us-west-2.amazonaws.com/shelfex-sso-server:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 8000,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        { "name": "NODE_ENV", "value": "production" },
+        { "name": "PORT", "value": "8000" },
+        { "name": "DATABASE_URL", "value": "postgresql://neondb_owner:npg_3GeJQUZI4rWt@ep-autumn-block-a1swb7a2-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require" },
+        { "name": "CORS_ORIGIN", "value": "https://sso-front-zeta.vercel.app" },
+        { "name": "FRONTEND_URL", "value": "https://sso-front-zeta.vercel.app" },
+        { "name": "ACCESS_TOKEN_SECRET", "value": "UezMczzG8zcwTBgszVJl5bkdS9j3T3Z8h4vogZrxJZ1ekaEChb1xpRtTBk7xPtah" },
+        { "name": "REFRESH_TOKEN_SECRET", "value": "hdEyt7TZC1lDtGH5qOvKZWr8yTwWT5o4S9WGhH0cKhfdthC7YjM7LbUaXTymryVK" },
+        { "name": "EMAIL_VERIFICATION_REQUIRED", "value": "true" },
+        { "name": "RESEND_API_KEY", "value": "re_8RNSmwEZ_6rxWHZyF7BVEjhY2uQ858XcA" },
+        { "name": "RESEND_FROM_EMAIL", "value": "no-reply@shelfexecution.com" }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/shelfex-sso-server",
+          "awslogs-region": "us-west-2",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "healthCheck": {
+        "command": ["CMD-SHELL", "wget -q --spider http://localhost:8000/api/v1/health || exit 1"],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 60
+      }
+    }
+  ]
+}
