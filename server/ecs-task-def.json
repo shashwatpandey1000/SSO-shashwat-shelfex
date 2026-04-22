@@ -21,7 +21,7 @@
         { "name": "PORT", "value": "8000" },
         { "name": "DATABASE_URL", "value": "postgresql://neondb_owner:npg_3GeJQUZI4rWt@ep-autumn-block-a1swb7a2-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require" },
         { "name": "CORS_ORIGIN", "value": "https://accounts.shelfexecution.com,https://sso-front-zeta.vercel.app,https://main.dd8oxcoka9xnm.amplifyapp.com" },
-        { "name": "FRONTEND_URL", "value": "https://accounts.shelfexecution.com" },
+        { "name": "FRONTEND_URL", "value": "https://main.dd8oxcoka9xnm.amplifyapp.com" },
         { "name": "ACCESS_TOKEN_SECRET", "value": "UezMczzG8zcwTBgszVJl5bkdS9j3T3Z8h4vogZrxJZ1ekaEChb1xpRtTBk7xPtah" },
         { "name": "REFRESH_TOKEN_SECRET", "value": "hdEyt7TZC1lDtGH5qOvKZWr8yTwWT5o4S9WGhH0cKhfdthC7YjM7LbUaXTymryVK" },
         { "name": "EMAIL_VERIFICATION_REQUIRED", "value": "true" },
