@@ -22,7 +22,8 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 
 RUN apk add --no-cache python3 make g++ && \
-    npm ci --omit=dev && \
+    npm ci --omit=dev --ignore-scripts && \
+    npm rebuild bcrypt && \
     apk del python3 make g++
 
 COPY --from=builder /app/dist ./dist
